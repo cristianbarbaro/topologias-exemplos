@@ -4,22 +4,22 @@ node n1 {
     network-config {
 	hostname n1
 	!
+	interface eth1
+	 ip address 10.0.1.1/24
+	!
 	interface eth0
 	 ip address 192.168.1.1/24
 	!
 	interface eth2
 	 ip address 10.0.4.2/24
 	!
-	interface eth1
-	 ip address 10.0.1.1/24
-	!
     }
     canvas c1
     iconcoords {634.0 378.0}
     labelcoords {634.0 410.0}
     interface-peer {eth0 n3}
-    interface-peer {eth1 n2}
     interface-peer {eth2 n4}
+    interface-peer {eth1 n11}
 }
 
 node n2 {
@@ -35,7 +35,6 @@ node n2 {
     canvas c1
     iconcoords {871.0 191.0}
     labelcoords {871.0 223.0}
-    interface-peer {eth0 n1}
     services {IPForward DefaultRoute StaticRoute UserDefined Firewall}
     custom-config {
 	custom-config-id service:UserDefined
@@ -44,6 +43,7 @@ node n2 {
 	dirs=('/usr/local/etc/quagga', )
 	}
     }
+    interface-peer {eth0 n11}
 }
 
 node n3 {
@@ -75,11 +75,11 @@ node n4 {
 	!
     }
     canvas c1
-    iconcoords {307.0 211.0}
-    labelcoords {307.0 243.0}
+    iconcoords {309.0 210.0}
+    labelcoords {309.0 242.0}
     interface-peer {eth0 n7}
     interface-peer {eth1 n1}
-    interface-peer {eth2 n5}
+    interface-peer {eth2 n8}
 }
 
 node n5 {
@@ -95,8 +95,8 @@ node n5 {
     canvas c1
     iconcoords {203.0 40.0}
     labelcoords {203.0 72.0}
-    interface-peer {eth0 n4}
     services {DefaultRoute SSH}
+    interface-peer {eth0 n8}
 }
 
 node n6 {
@@ -106,13 +106,13 @@ node n6 {
 	hostname n6
 	!
 	interface eth0
-	 ip address 10.0.2.20/24
+	 ip address 10.0.2.30/24
 	!
     }
     canvas c1
     iconcoords {109.0 659.0}
     labelcoords {109.0 691.0}
-    interface-peer {eth0 n7}
+    interface-peer {eth0 n9}
 }
 
 node n7 {
@@ -121,32 +121,61 @@ node n7 {
     network-config {
 	hostname n7
 	!
-	interface eth1
-	 ip address 10.0.3.1/24
-	!
 	interface eth0
 	 ip address 10.0.2.1/24
+	!
+	interface eth1
+	 ip address 10.0.3.1/24
 	!
     }
     canvas c1
     iconcoords {213.0 383.0}
     labelcoords {213.0 415.0}
-    interface-peer {eth0 n6}
     interface-peer {eth1 n4}
+    interface-peer {eth0 n9}
+}
+
+node n8 {
+    type hub
+    network-config {
+	hostname n8
+	!
+    }
+    canvas c1
+    iconcoords {325.0 102.0}
+    labelcoords {325.0 126.0}
+    interface-peer {e0 n5}
+    interface-peer {e1 n4}
+}
+
+node n9 {
+    type hub
+    network-config {
+	hostname n9
+	!
+    }
+    canvas c1
+    iconcoords {202.0 549.0}
+    labelcoords {202.0 573.0}
+    interface-peer {e0 n7}
+    interface-peer {e1 n6}
+}
+
+node n11 {
+    type hub
+    network-config {
+	hostname n11
+	!
+    }
+    canvas c1
+    iconcoords {745.0 296.0}
+    labelcoords {745.0 320.0}
+    interface-peer {e0 n1}
+    interface-peer {e1 n2}
 }
 
 link l1 {
     nodes {n3 n1}
-}
-
-link l2 {
-    nodes {n1 n2}
-    bandwidth 0
-}
-
-link l3 {
-    nodes {n6 n7}
-    bandwidth 0
 }
 
 link l4 {
@@ -159,8 +188,33 @@ link l5 {
     bandwidth 0
 }
 
+link l2 {
+    nodes {n1 n11}
+    bandwidth 0
+}
+
+link l7 {
+    nodes {n11 n2}
+    bandwidth 0
+}
+
 link l6 {
-    nodes {n4 n5}
+    nodes {n5 n8}
+    bandwidth 0
+}
+
+link l8 {
+    nodes {n8 n4}
+    bandwidth 0
+}
+
+link l3 {
+    nodes {n9 n7}
+    bandwidth 0
+}
+
+link l9 {
+    nodes {n9 n6}
     bandwidth 0
 }
 
@@ -182,6 +236,8 @@ ifconfig $bridge 192.168.1.2/24 up
 ip route add 10.0.1.0/24 via 192.168.1.1
 
 ip route add 10.0.5.0/24 via 192.168.1.1
+
+
 }
 
 option global {
