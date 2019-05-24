@@ -35,7 +35,7 @@ node n2 {
     canvas c1
     iconcoords {871.0 191.0}
     labelcoords {871.0 223.0}
-    services {IPForward DefaultRoute StaticRoute UserDefined Firewall}
+    services {IPForward DefaultRoute StaticRoute HTTP UserDefined Firewall}
     custom-config {
 	custom-config-id service:UserDefined
 	custom-command UserDefined
@@ -93,10 +93,18 @@ node n5 {
 	!
     }
     canvas c1
-    iconcoords {203.0 40.0}
-    labelcoords {203.0 72.0}
-    services {DefaultRoute SSH}
+    iconcoords {115.0 65.0}
+    labelcoords {115.0 97.0}
+    services {DefaultRoute SSH UserDefined}
     interface-peer {eth0 n8}
+    custom-config {
+	custom-config-id service:UserDefined
+	custom-command UserDefined
+	config {
+	cmdup=('/etc/init.d/bind9 start', )
+	cmddown=('/etc/init.d/bind9 stop', )
+	}
+    }
 }
 
 node n6 {
@@ -146,6 +154,8 @@ node n8 {
     labelcoords {325.0 126.0}
     interface-peer {e0 n5}
     interface-peer {e1 n4}
+    interface-peer {e2 n10}
+    interface-peer {e3 n12}
 }
 
 node n9 {
@@ -159,6 +169,7 @@ node n9 {
     labelcoords {202.0 573.0}
     interface-peer {e0 n7}
     interface-peer {e1 n6}
+    interface-peer {e2 n13}
 }
 
 node n11 {
@@ -172,6 +183,62 @@ node n11 {
     labelcoords {745.0 320.0}
     interface-peer {e0 n1}
     interface-peer {e1 n2}
+}
+
+node n10 {
+    type router
+    model host
+    network-config {
+	hostname n10
+	!
+	interface eth0
+	 ip address 10.0.5.11/24
+	!
+    }
+    canvas c1
+    iconcoords {275.0 23.0}
+    labelcoords {275.0 55.0}
+    interface-peer {eth0 n8}
+    custom-config {
+	custom-config-id service:UserDefined
+	custom-command UserDefined
+	config {
+	dirs=('/etc/resolvconf', )
+	}
+    }
+    services {DefaultRoute SSH}
+}
+
+node n12 {
+    type router
+    model host
+    network-config {
+	hostname n12
+	!
+	interface eth0
+	 ip address 10.0.5.12/24
+	!
+    }
+    canvas c1
+    iconcoords {433.0 30.0}
+    labelcoords {433.0 62.0}
+    interface-peer {eth0 n8}
+}
+
+node n13 {
+    type router
+    model PC
+    network-config {
+	hostname n13
+	!
+	interface eth0
+	 ip address 10.0.2.20/24
+	!
+    }
+    canvas c1
+    iconcoords {335.0 660.0}
+    labelcoords {335.0 692.0}
+    interface-peer {eth0 n9}
 }
 
 link l1 {
@@ -218,6 +285,21 @@ link l9 {
     bandwidth 0
 }
 
+link l10 {
+    nodes {n8 n10}
+    bandwidth 0
+}
+
+link l11 {
+    nodes {n8 n12}
+    bandwidth 0
+}
+
+link l12 {
+    nodes {n9 n13}
+    bandwidth 0
+}
+
 canvas c1 {
     name {Canvas1}
 }
@@ -236,6 +318,7 @@ ifconfig $bridge 192.168.1.2/24 up
 ip route add 10.0.1.0/24 via 192.168.1.1
 
 ip route add 10.0.5.0/24 via 192.168.1.1
+
 
 
 }
