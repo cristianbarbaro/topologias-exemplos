@@ -1,0 +1,484 @@
+node n1 {
+    type router
+    model router
+    network-config {
+	hostname router1
+	!
+	interface eth0
+	 ip address 192.168.0.1/24
+	!
+	interface eth2
+	 ip address 192.168.5.1/24
+	!
+    }
+    canvas c1
+    iconcoords {82.0 357.0}
+    labelcoords {82.0 385.0}
+    interface-peer {eth2 n7}
+    services {zebra RIP vtysh IPForward IPsec}
+    custom-config {
+	custom-config-id service:IPsec
+	custom-command IPsec
+	config {
+	files=('ipsec.sh', )
+	}
+    }
+    custom-config {
+	custom-config-id service:IPsec:ipsec.sh
+	custom-command ipsec.sh
+	config {
+	#!/bin/sh
+	# set up static tunnel mode security assocation for service (security.py)
+	# -------- CUSTOMIZATION REQUIRED --------
+	#
+	# The IPsec service builds ESP tunnels between the specified peers using the
+	# racoon IKEv2 keying daemon. You need to provide keys and the addresses of
+	# peers, along with subnets to tunnel.
+	
+	# directory containing the certificate and key described below
+	keydir=/etc/core/keys
+	
+	# the name used for the "$certname.pem" x509 certificate and 
+	# "$certname.key" RSA private key, which can be generated using openssl
+	certname=ipsec1
+	
+	# list the public-facing IP addresses, starting with the localhost and followed
+	# by each tunnel peer, separated with a single space
+	tunnelhosts="192.168.0.1AND192.168.0.2"
+	
+	# Define T<i> where i is the index for each tunnel peer host from
+	# the tunnel_hosts list above (0 is localhost).
+	# T<i> is a list of IPsec tunnels with peer i, with a local subnet address
+	# followed by the remote subnet address:
+	#   T<i>="<local>AND<remote> <local>AND<remote>"
+	# For example, 172.16.0.0/24 is a local network (behind this node) to be
+	# tunneled and 172.16.2.0/24 is a remote network (behind peer 1)
+	T1="192.168.5.0/24AND192.168.7.0/24"
+	
+	# -------- END CUSTOMIZATION --------
+	
+	echo "building config $PWD/ipsec.conf..." 
+	echo "building config $PWD/ipsec.conf..." > $PWD/ipsec.log
+	
+	checkip=0
+	if [ "$(dpkg -l | grep " sipcalc ")" = "" ]; then
+	   echo "WARNING: ip validation disabled because package sipcalc not installed
+	        " >> $PWD/ipsec.log
+	   checkip=1
+	fi
+	
+	echo "#!/usr/sbin/setkey -f
+	    # Flush the SAD and SPD
+	    flush;
+	    spdflush;
+	
+	    # Security policies  \
+	     " > $PWD/ipsec.conf
+	i=0
+	for hostpair in $tunnelhosts; do 
+	    i=`expr $i + 1`
+	    # parse tunnel host IP
+	    thishost=${hostpair%%AND*}
+	    peerhost=${hostpair##*AND} 
+	    if [ $checkip = "0" ] &&
+	       [ "$(sipcalc "$thishost" "$peerhost" | grep ERR)" != "" ]; then
+		  echo "ERROR: invalid host address $thishost or $peerhost \
+	             " >> $PWD/ipsec.log
+	    fi
+	    # parse each tunnel addresses 
+	    tunnel_list_var_name=T$i
+	    eval tunnels="$"$tunnel_list_var_name""
+	    for ttunnel in $tunnels; do
+	        lclnet=${ttunnel%%AND*}
+	        rmtnet=${ttunnel##*AND} 
+	    	if [ $checkip = "0" ] && 
+	           [ "$(sipcalc "$lclnet" "$rmtnet"| grep ERR)" != "" ]; then
+	    	    echo "ERROR: invalid tunnel address $lclnet and $rmtnet \
+	                 " >> $PWD/ipsec.log
+		fi
+	    	# add tunnel policies
+		echo "
+	    spdadd $lclnet $rmtnet any -P out ipsec
+		esp/tunnel/$thishost-$peerhost/require;
+	    spdadd $rmtnet $lclnet any -P in ipsec
+		esp/tunnel/$peerhost-$thishost/require; \
+	    	    " >> $PWD/ipsec.conf
+	    done
+	done
+	
+	echo "building config $PWD/racoon.conf..."
+	if [ ! -e $keydir\/$certname.key ] || [ ! -e $keydir\/$certname.pem ]; then
+	     echo "ERROR: missing certification files under $keydir \
+	$certname.key or $certname.pem " >> $PWD/ipsec.log
+	fi
+	echo "
+		 path certificate \"$keydir\";
+		 listen {
+			 adminsock disabled;
+		 }
+		 remote anonymous
+		 {
+			 exchange_mode main;
+	 		 certificate_type x509 \"$certname.pem\" \"$certname.key\";
+			 ca_type x509 \"ca-cert.pem\";
+			 my_identifier asn1dn;
+			 peers_identifier asn1dn;
+	
+			 proposal {
+				 encryption_algorithm 3des ;
+				 hash_algorithm sha1;
+				 authentication_method rsasig ;
+				 dh_group modp768;
+			 }
+		 }
+		 sainfo anonymous
+		 {
+			 pfs_group modp768;
+			 lifetime time 1 hour ;
+			 encryption_algorithm 3des, blowfish 448, rijndael ;
+			 authentication_algorithm hmac_sha1, hmac_md5 ;
+			 compression_algorithm deflate ;
+		 }
+		" > $PWD/racoon.conf
+	
+	# the setkey program is required from the ipsec-tools package
+	echo "running setkey -f $PWD/ipsec.conf..."
+	setkey -f $PWD/ipsec.conf
+	
+	echo "running racoon -d -f $PWD/racoon.conf..."
+	racoon -d -f $PWD/racoon.conf -l racoon.log
+	
+	}
+    }
+    custom-image /usr/lib/core/icons/normal/router_red.gif
+    interface-peer {eth0 n3}
+}
+
+node n2 {
+    type router
+    model router
+    network-config {
+	hostname router2
+	!
+	interface eth0
+	 ip address 192.168.0.2/24
+	 ipv6 address 2001:0::1/64
+	!
+	interface eth2
+	 ip address 192.168.7.1/24
+	!
+    }
+    canvas c1
+    iconcoords {759.0 378.0}
+    labelcoords {759.0 406.0}
+    interface-peer {eth2 n9}
+    services {zebra RIP vtysh IPForward IPsec}
+    custom-config {
+	custom-config-id service:IPsec
+	custom-command IPsec
+	config {
+	files=('ipsec.sh', )
+	}
+    }
+    custom-config {
+	custom-config-id service:IPsec:ipsec.sh
+	custom-command ipsec.sh
+	config {
+	#!/bin/sh
+	# set up static tunnel mode security assocation for service (security.py)
+	# -------- CUSTOMIZATION REQUIRED --------
+	#
+	# The IPsec service builds ESP tunnels between the specified peers using the
+	# racoon IKEv2 keying daemon. You need to provide keys and the addresses of
+	# peers, along with subnets to tunnel.
+	
+	# directory containing the certificate and key described below
+	keydir=/etc/core/keys
+	
+	# the name used for the "$certname.pem" x509 certificate and 
+	# "$certname.key" RSA private key, which can be generated using openssl
+	certname=ipsec1
+	
+	# list the public-facing IP addresses, starting with the localhost and followed
+	# by each tunnel peer, separated with a single space
+	tunnelhosts="192.168.0.2AND192.168.0.1"
+	
+	# Define T<i> where i is the index for each tunnel peer host from
+	# the tunnel_hosts list above (0 is localhost).
+	# T<i> is a list of IPsec tunnels with peer i, with a local subnet address
+	# followed by the remote subnet address:
+	#   T<i>="<local>AND<remote> <local>AND<remote>"
+	# For example, 172.16.0.0/24 is a local network (behind this node) to be
+	# tunneled and 172.16.2.0/24 is a remote network (behind peer 1)
+	T1="192.168.7.0/24AND192.168.5.0/24"
+	
+	# -------- END CUSTOMIZATION --------
+	
+	echo "building config $PWD/ipsec.conf..." 
+	echo "building config $PWD/ipsec.conf..." > $PWD/ipsec.log
+	
+	checkip=0
+	if [ "$(dpkg -l | grep " sipcalc ")" = "" ]; then
+	   echo "WARNING: ip validation disabled because package sipcalc not installed
+	        " >> $PWD/ipsec.log
+	   checkip=1
+	fi
+	
+	echo "#!/usr/sbin/setkey -f
+	    # Flush the SAD and SPD
+	    flush;
+	    spdflush;
+	
+	    # Security policies  \
+	     " > $PWD/ipsec.conf
+	i=0
+	for hostpair in $tunnelhosts; do 
+	    i=`expr $i + 1`
+	    # parse tunnel host IP
+	    thishost=${hostpair%%AND*}
+	    peerhost=${hostpair##*AND} 
+	    if [ $checkip = "0" ] &&
+	       [ "$(sipcalc "$thishost" "$peerhost" | grep ERR)" != "" ]; then
+		  echo "ERROR: invalid host address $thishost or $peerhost \
+	             " >> $PWD/ipsec.log
+	    fi
+	    # parse each tunnel addresses 
+	    tunnel_list_var_name=T$i
+	    eval tunnels="$"$tunnel_list_var_name""
+	    for ttunnel in $tunnels; do
+	        lclnet=${ttunnel%%AND*}
+	        rmtnet=${ttunnel##*AND} 
+	    	if [ $checkip = "0" ] && 
+	           [ "$(sipcalc "$lclnet" "$rmtnet"| grep ERR)" != "" ]; then
+	    	    echo "ERROR: invalid tunnel address $lclnet and $rmtnet \
+	                 " >> $PWD/ipsec.log
+		fi
+	    	# add tunnel policies
+		echo "
+	    spdadd $lclnet $rmtnet any -P out ipsec
+		esp/tunnel/$thishost-$peerhost/require;
+	    spdadd $rmtnet $lclnet any -P in ipsec
+		esp/tunnel/$peerhost-$thishost/require; \
+	    	    " >> $PWD/ipsec.conf
+	    done
+	done
+	
+	echo "building config $PWD/racoon.conf..."
+	if [ ! -e $keydir\/$certname.key ] || [ ! -e $keydir\/$certname.pem ]; then
+	     echo "ERROR: missing certification files under $keydir \
+	$certname.key or $certname.pem " >> $PWD/ipsec.log
+	fi
+	echo "
+		 path certificate \"$keydir\";
+		 listen {
+			 adminsock disabled;
+		 }
+		 remote anonymous
+		 {
+			 exchange_mode main;
+	 		 certificate_type x509 \"$certname.pem\" \"$certname.key\";
+			 ca_type x509 \"ca-cert.pem\";
+			 my_identifier asn1dn;
+			 peers_identifier asn1dn;
+	
+			 proposal {
+				 encryption_algorithm 3des ;
+				 hash_algorithm sha1;
+				 authentication_method rsasig ;
+				 dh_group modp768;
+			 }
+		 }
+		 sainfo anonymous
+		 {
+			 pfs_group modp768;
+			 lifetime time 1 hour ;
+			 encryption_algorithm 3des, blowfish 448, rijndael ;
+			 authentication_algorithm hmac_sha1, hmac_md5 ;
+			 compression_algorithm deflate ;
+		 }
+		" > $PWD/racoon.conf
+	
+	# the setkey program is required from the ipsec-tools package
+	echo "running setkey -f $PWD/ipsec.conf..."
+	setkey -f $PWD/ipsec.conf
+	
+	echo "running racoon -d -f $PWD/racoon.conf..."
+	racoon -d -f $PWD/racoon.conf -l racoon.log
+	
+	}
+    }
+    custom-image /usr/lib/core/icons/normal/router_red.gif
+    interface-peer {eth0 n3}
+}
+
+node n7 {
+    type router
+    model host
+    network-config {
+	hostname PC1
+	!
+	interface eth0
+	 ip address 192.168.5.10/24
+	!
+    }
+    canvas c1
+    iconcoords {84.0 120.0}
+    labelcoords {84.0 148.0}
+    interface-peer {eth0 n1}
+}
+
+node n9 {
+    type router
+    model host
+    network-config {
+	hostname PC2
+	!
+	interface eth0
+	 ip address 192.168.7.10/24
+	!
+    }
+    canvas c1
+    iconcoords {770.0 155.0}
+    labelcoords {770.0 183.0}
+    interface-peer {eth0 n2}
+}
+
+node n4 {
+    type router
+    model host
+    network-config {
+	hostname SNIFFER
+	!
+	interface eth0
+	 ipv6 address 2001:0::11/64
+	 ip address 192.168.0.11/24
+	!
+    }
+    canvas c1
+    iconcoords {393.0 408.0}
+    labelcoords {393.0 440.0}
+    interface-peer {eth0 n3}
+}
+
+node n3 {
+    type hub
+    network-config {
+	hostname Hub
+	!
+    }
+    canvas c1
+    iconcoords {413.0 205.0}
+    labelcoords {413.0 229.0}
+    interface-peer {e0 n1}
+    interface-peer {e2 n4}
+    interface-peer {e1 n2}
+}
+
+link l1 {
+    nodes {n1 n7}
+}
+
+link l5 {
+    nodes {n2 n9}
+}
+
+link l2 {
+    nodes {n1 n3}
+    bandwidth 0
+}
+
+link l4 {
+    nodes {n3 n4}
+    bandwidth 0
+}
+
+link l3 {
+    nodes {n3 n2}
+    bandwidth 0
+}
+
+annotation a1 {
+    iconcoords {25 55 175 397}
+    type rectangle
+    label {Casa Matriz}
+    labelcolor black
+    fontfamily {Arial}
+    fontsize 12
+    color #C0C0FF
+    width 0
+    border black
+    rad 25
+    effects {bold}
+    canvas c1
+}
+
+annotation a2 {
+    iconcoords {616.0 82.0 898.0 459.0}
+    type rectangle
+    label {Sucursal}
+    labelcolor black
+    fontfamily {Arial}
+    fontsize 12
+    color #C0C0FF
+    width 0
+    border black
+    rad 25
+    effects {bold}
+    canvas c1
+}
+
+annotation a3 {
+    iconcoords {179.0 44.0 605.0 453.0}
+    type rectangle
+    label {Internet}
+    labelcolor black
+    fontfamily {Arial}
+    fontsize 12
+    color #c0383c
+    width 0
+    border black
+    rad 25
+    effects {bold}
+    canvas c1
+}
+
+annotation a4 {
+    iconcoords {317 308 477 439}
+    type rectangle
+    label {Sniffer}
+    labelcolor black
+    fontfamily {Arial}
+    fontsize 12
+    color #c0c010
+    width 0
+    border black
+    rad 25
+    canvas c1
+}
+
+canvas c1 {
+    name {Canvas1}
+}
+
+traffic {
+    {flow 1 from n7 to n9} 1 0.0 1000 n7 n9 192.168.5.10 5000 {} 192.168.7.10 22 /var/log/mgen1.log TCP {} {POISSON [50.0 1280]} {}
+}
+
+option global {
+    interface_names yes
+    ip_addresses yes
+    ipv6_addresses no
+    node_labels yes
+    link_labels yes
+    ipsec_configs yes
+    exec_errors yes
+    show_api no
+    background_images no
+    annotations yes
+    grid yes
+    traffic_start 1
+}
+
+option session {
+}
+
