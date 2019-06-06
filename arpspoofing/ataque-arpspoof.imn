@@ -63,7 +63,6 @@ node n1 {
     }
     services {zebra vtysh IPForward}
     interface-peer {eth1 n7}
-    hidden 1
 }
 
 node n2 {
@@ -78,7 +77,6 @@ node n2 {
     interface-peer {e0 n1}
     interface-peer {e1 n3}
     interface-peer {e2 n4}
-    hidden 1
 }
 
 node n3 {
@@ -174,7 +172,6 @@ node n4 {
 	ip route add default via 10.0.0.1
 	}
     }
-    hidden 1
 }
 
 node n6 {
@@ -223,7 +220,6 @@ node n6 {
 	}
     }
     interface-peer {eth0 n7}
-    hidden 1
 }
 
 node n7 {
@@ -238,7 +234,6 @@ node n7 {
     interface-peer {e0 n1}
     interface-peer {e1 n6}
     interface-peer {e2 n8}
-    hidden 1
 }
 
 node n8 {
@@ -251,7 +246,6 @@ node n8 {
     iconcoords {655.0 122.0}
     labelcoords {655.0 154.0}
     interface-peer {0 n7}
-    hidden 1
 }
 
 link l1 {
@@ -333,6 +327,7 @@ ifconfig "$BRenp0s3" 10.0.1.50/24 up
 
 
 
+
 }
 
 hook 6:shutdown_hook.sh {
@@ -341,6 +336,7 @@ hook 6:shutdown_hook.sh {
 # specified state
 
 core-cleanup
+
 
 
 

@@ -16,7 +16,7 @@ if __name__ == '__main__':
 # sudo pip3 install flask-sqlalchemy
 # sudo pip3 install flask-migrate
 # sudo pip3 install flask-login
-# sudo pip3 install flask-boostrap
+# sudo pip3 install Flask-Boostrap
 
 # flask db init
 # flask db migrate -m "users movements accounts table"
