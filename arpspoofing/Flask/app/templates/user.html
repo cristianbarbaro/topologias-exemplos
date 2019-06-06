@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block app_content %}
+    <div class="col-md-6 col-md-offset-3">
+        <h1 class="text-center">Nombre de usuario: {{ user.username }}</h1>
+        <hr>
+        <p>
+        Número de cuenta: <b>{{ account.number }}</b> 
+        <br>
+        Monto en cuenta: <b>$ {{ account.amount }}</b>
+        <br>
+        <a href="{{ url_for('transactions', user_id=current_user.id) }}">Ver mis transacciones realizadas.</a>
+        </p>
+    </div>
+{% endblock %}
